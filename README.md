@@ -248,4 +248,3 @@ return 0;
 ```
 ## Output:
 
-<img width="916" height="407" alt="Screenshot 2025-09-06 222559" src="https://github.com/user-attachments/assets/37560013-6ecd-44a6-a8a7-29b140afaee1" />
