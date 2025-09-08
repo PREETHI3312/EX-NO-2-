@@ -30,221 +30,228 @@ STEP-3: Arrange the keyword without duplicates in a 5*5 matrix in the row order 
 STEP-4: Group the plain text in pairs and match the corresponding corner letters by forming a rectangular grid.
 STEP-5: Display the obtained cipher text.
 
-Program:
+# Program:
 ```
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#define SIZE 30
+#define SIZE 50  // Increased to handle extra padding
+
 // Function to convert the string to lowercase
 void toLowerCase(char plain[], int ps)
 {
-for (int i = 0; i < ps; i++)
-{
-if (plain[i] >= 'A' && plain[i] <= 'Z')
-plain[i] += 32;
+    for (int i = 0; i < ps; i++)
+        if (plain[i] >= 'A' && plain[i] <= 'Z')
+            plain[i] += 32;
 }
-}
+
 // Function to remove all spaces in a string
 int removeSpaces(char *plain, int ps)
 {
-int i, count = 0;
-for (i = 0; i < ps; i++)
-if (plain[i] != ' ')
-plain[count++] = plain[i];
-plain[count] = '\0';
-return count;
+    int i, count = 0;
+    for (i = 0; i < ps; i++)
+        if (plain[i] != ' ')
+            plain[count++] = plain[i];
+    plain[count] = '\0';
+    return count;
 }
+
 // Function to generate the 5x5 key square
-void generateKeyTable(char key[],int ks, char keyT[5][5])
+void generateKeyTable(char key[], int ks, char keyT[5][5])
 {
-int i, j, k;
-int dicty[26] = {0};
-// Marking characters that appear in the key (excluding 'j')
-for (i = 0; i < ks; i++)
-{
-if (key[i] != 'j')
-{
-dicty[key[i] - 'a'] = 2;
+    int i, j, k;
+    int dicty[26] = {0};
+
+    for (i = 0; i < ks; i++)
+        if (key[i] != 'j')
+            dicty[key[i] - 'a'] = 2;
+
+    dicty['j' - 'a'] = 1; // Mark 'j' as used
+    i = 0; j = 0;
+
+    for (k = 0; k < ks; k++)
+    {
+        if (dicty[key[k] - 'a'] == 2)
+        {
+            dicty[key[k] - 'a'] -= 1;
+            keyT[i][j++] = key[k];
+            if (j == 5) { i++; j = 0; }
+        }
+    }
+
+    for (k = 0; k < 26; k++)
+    {
+        if (dicty[k] == 0 && (char)(k+'a') != 'j')
+        {
+            keyT[i][j++] = (char)(k + 'a');
+            if (j == 5) { i++; j = 0; }
+        }
+    }
 }
-}
-dicty['j' - 'a'] = 1; // Mark 'j' as already used
-i = 0, j = 0;
-// Filling key table with characters from key
-for (k = 0; k < ks; k++)
-{
-if (dicty[key[k] - 'a'] == 2)
-{
-dicty[key[k] - 'a'] -= 1;
-keyT[i][j] = key[k];
-j++;
-if (j == 5)
-{
-i++;
-j = 0;
-}
-}
-}
-// Filling the rest of the key table with remaining characters
-for (k = 0; k < 26; k++)
-{
-if (dicty[k] == 0 && (char)(k + 'a') != 'j')
-{
-keyT[i][j] = (char)(k + 'a');
-j++;
-if (j == 5)
-{
-i++;
-j = 0;
-}
-}
-}
-}
-// Function to search for the characters of a digraph in the key square
+
+// Function to search for a digraph in key square
 void search(char keyT[5][5], char a, char b, int arr[])
 {
-int i, j;
-if (a == 'j')
-a = 'i';
-if (b == 'j')
-b = 'i';
-for (i = 0; i < 5; i++)
-{
-for (j = 0; j < 5; j++)
-{
-if (keyT[i][j] == a)
-{
-arr[0] = i;
-arr[1] = j;
+    int i, j;
+    if (a == 'j') a = 'i';
+    if (b == 'j') b = 'i';
+
+    for (i = 0; i < 5; i++)
+        for (j = 0; j < 5; j++)
+        {
+            if (keyT[i][j] == a) { arr[0]=i; arr[1]=j; }
+            if (keyT[i][j] == b) { arr[2]=i; arr[3]=j; }
+        }
 }
-else if (keyT[i][j] == b)
-{
-arr[2] = i;
-arr[3] = j;
-}
-}
-}
-}
-// Function to find the modulus with 5
-int mod5(int a)
-{
-return (a % 5 + 5) % 5; // Ensures positive modulus
-}
-// Function to make the plain text length even
+
+// Modulus 5 function
+int mod5(int a) { return (a % 5 + 5) % 5; }
+
+// Prepare plaintext: add 'x' between duplicate letters and pad if odd
 int prepare(char str[], int ptrs)
 {
-if (ptrs % 2 != 0)
-{
-str[ptrs++] = 'z'; // Add padding 'z'
-str[ptrs] = '\0';
+    char temp[SIZE];
+    int i = 0, j = 0;
+    while (i < ptrs)
+    {
+        temp[j++] = str[i];
+        if (i < ptrs - 1 && str[i] == str[i+1])
+            temp[j++] = 'x';
+        i++;
+    }
+    if (j % 2 != 0)
+        temp[j++] = 'z';  // pad at end
+    temp[j] = '\0';
+    strcpy(str, temp);
+    return j;
 }
-return ptrs;
-}
-// Function for performing the encryption
+
+// Encryption function
 void encrypt(char str[], char keyT[5][5], int ps)
 {
-int i, a[4];
-for (i = 0; i < ps; i += 2)
+    int i, a[4];
+    for (i = 0; i < ps; i += 2)
+    {
+        search(keyT, str[i], str[i+1], a);
+        if (a[0] == a[2])
+        {
+            str[i] = keyT[a[0]][mod5(a[1]+1)];
+            str[i+1] = keyT[a[2]][mod5(a[3]+1)];
+        }
+        else if (a[1] == a[3])
+        {
+            str[i] = keyT[mod5(a[0]+1)][a[1]];
+            str[i+1] = keyT[mod5(a[2]+1)][a[3]];
+        }
+        else
+        {
+            str[i] = keyT[a[0]][a[3]];
+            str[i+1] = keyT[a[2]][a[1]];
+        }
+    }
+}
+
+// Decryption function
+void decrypt(char str[], char keyT[5][5], int ps)
 {
-search(keyT, str[i], str[i + 1], a);
-if (a[0] == a[2])
+    int i, a[4];
+    for (i = 0; i < ps; i += 2)
+    {
+        search(keyT, str[i], str[i+1], a);
+        if (a[0] == a[2])
+        {
+            str[i] = keyT[a[0]][mod5(a[1]-1)];
+            str[i+1] = keyT[a[2]][mod5(a[3]-1)];
+        }
+        else if (a[1] == a[3])
+        {
+            str[i] = keyT[mod5(a[0]-1)][a[1]];
+            str[i+1] = keyT[mod5(a[2]-1)][a[3]];
+        }
+        else
+        {
+            str[i] = keyT[a[0]][a[3]];
+            str[i+1] = keyT[a[2]][a[1]];
+        }
+    }
+}
+
+// Function to remove filler 'x' and trailing 'z'
+void removeFiller(char str[])
 {
-// Same row
-str[i] = keyT[a[0]][mod5(a[1] + 1)];
-str[i + 1] = keyT[a[2]][mod5(a[3] + 1)];
+    int i, j = 0;
+    int len = strlen(str);
+    char temp[SIZE];
+
+    for (i = 0; i < len; i++)
+    {
+        // Skip 'x' between duplicate letters
+        if (i > 0 && i < len-1 && str[i]=='x' && str[i-1]==str[i+1])
+            continue;
+        temp[j++] = str[i];
+    }
+    temp[j] = '\0';
+
+    // Remove trailing 'z' if it was padding
+    if (j > 0 && temp[j-1]=='z') temp[j-1]='\0';
+
+    strcpy(str, temp);
 }
-else if (a[1] == a[3])
-{ // Same column
-str[i] = keyT[mod5(a[0] + 1)][a[1]];
-str[i + 1] = keyT[mod5(a[2] + 1)][a[3]];
-}
-else
-{ // Rectangle swap
-str[i] = keyT[a[0]][a[3]];
-str[i + 1] = keyT[a[2]][a[1]];
-}
-}
-}
-// Function for performing the decryption
-void decrypt(char str[],
-char keyT[5][5], int ps)
-{
-int i, a[4];
-for (i = 0; i < ps; i += 2)
-{
-search(keyT, str[i], str[i + 1], a);
-if (a[0] == a[2])
-{
-// Same row
-str[i] = keyT[a[0]][mod5(a[1] - 1)];
-str[i + 1] = keyT[a[2]][mod5(a[3] - 1)];
-}
-else if (a[1] == a[3])
-{
-// Same column
-str[i] = keyT[mod5(a[0] - 1)][a[1]];
-str[i + 1] = keyT[mod5(a[2] - 1)][a[3]];
-}
-else
-{
-// Rectangle swap
-str[i] = keyT[a[0]][a[3]];
-str[i + 1] = keyT[a[2]][a[1]];
-}
-}
-}
-// Function to encrypt using Playfair Cipher
+
+// Wrapper functions
 void encryptByPlayfairCipher(char str[], char key[])
 {
-int ps, ks;
-char keyT[5][5];
-// Key
-ks = strlen(key);
-ks = removeSpaces(key, ks);
-toLowerCase(key, ks);
-// Plaintext
-ps = strlen(str);
-toLowerCase(str, ps);
-ps = removeSpaces(str, ps);
-ps = prepare(str, ps);
-generateKeyTable(key, ks, keyT);
-encrypt(str, keyT, ps);
+    int ps = strlen(str), ks = strlen(key);
+    ks = removeSpaces(key, ks);
+    toLowerCase(key, ks);
+    toLowerCase(str, ps);
+    ps = removeSpaces(str, ps);
+    ps = prepare(str, ps);
+    char keyT[5][5];
+    generateKeyTable(key, ks, keyT);
+    encrypt(str, keyT, ps);
 }
-// Function to decrypt using Playfair Cipher
+
 void decryptByPlayfairCipher(char str[], char key[])
 {
-int ps, ks;
-char keyT[5][5];
-// Key
-ks = strlen(key);
-ks = removeSpaces(key, ks);
-toLowerCase(key,ks);
-// Ciphertext
-ps = strlen(str);
-toLowerCase(str, ps);
-ps = removeSpaces(str, ps);
-generateKeyTable(key, ks, keyT);
-decrypt(str, keyT, ps);
+    int ps = strlen(str), ks = strlen(key);
+    ks = removeSpaces(key, ks);
+    toLowerCase(key, ks);
+    toLowerCase(str, ps);
+    ps = removeSpaces(str, ps);
+    char keyT[5][5];
+    generateKeyTable(key, ks, keyT);
+    decrypt(str, keyT, ps);
+    removeFiller(str); // Clean filler 'x' and padding
 }
+
 // Driver code
 int main()
 {
-char str[SIZE], key[SIZE];
-printf("Simulating Playfair Cipher\n");
-// Key to be used
-strcpy(key, "Monopoly");
-printf("Key text: %s\n", key);
-// Plaintext to be encrypted
-strcpy(str, "DHANUSH");
-printf("Plain text: %s\n", str);
-// Encrypt using Playfair Cipher
-encryptByPlayfairCipher(str, key);
-printf("Cipher text: %s\n", str);
-// Decrypt using Playfair Cipher
-decryptByPlayfairCipher(str, key);
-printf("Decrypted text: %s\n", str);
-return 0;
+    char str[SIZE], key[SIZE];
+    printf("Simulating Playfair Cipher\n");
+
+    strcpy(key, "Monopoly");
+    printf("Key text: %s\n", key);
+
+    strcpy(str, "preethi");
+    printf("Plain text: %s\n", str);
+
+    encryptByPlayfairCipher(str, key);
+    printf("Cipher text: %s\n", str);
+
+    decryptByPlayfairCipher(str, key);
+    printf("Decrypted text: %s\n", str);
+
+    return 0;
 }
+
 ```
-## Output:
+
+## OUTPUT
+<img width="314" height="150" alt="image" src="https://github.com/user-attachments/assets/ce11aff5-a92d-4086-bcc7-32d47b4f0042" />
+
+## RESULT
+The program implementing the PlayFair cipher for encryption and decryption has been successfully executed, and the results have been verified
+
 
